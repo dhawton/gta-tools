@@ -4,7 +4,7 @@ const path = require("path");
 
 const BASE_URL="https://www.gtabase.com/";
 const files = {};
-const vehicles = {};
+const vehicles = [];
 
 async function handle() {
   let data = fs.readFileSync("cars.json");
@@ -15,16 +15,41 @@ async function handle() {
     if (car.attr.ct348.value.indexOf(",") > -1) {
       models = car.attr.ct348.value.split(", ");
       models.forEach((v) => {
-        vehicles[v] = car.name;
+        vehicles.push({
+          model: v,
+          name: car.name,
+          price: (car.attr.ct13 !== undefined) ? car.attr.ct13.value / 10 : -1,
+          category: car.attr.ct1.value[0].toLowerCase()
+        });
         files[v] = `${BASE_URL}${car.thumbnail}`;
       });
     } else {
-      vehicles[car.attr.ct348.value] = car.name;
+      vehicles.push({
+        model: car.attr.ct348.value,
+        name: car.name,
+        price: (car.attr.ct13 !== undefined) ? car.attr.ct13.value / 10 : -1,
+        category: car.attr.ct1.value[0].toLowerCase()
+      });
       files[car.attr.ct348.value] = `${BASE_URL}${car.thumbnail}`
     }
   });
   let promises = Object.keys(files).map((key) => download(files[key], `${key}.jpg`));
+  promises.push(writeJSON());
   return Promise.all(promises);
+}
+
+function writeJSON() {
+  return new Promise((resolve, reject) => {
+    fs.writeFile("output.json", JSON.stringify(vehicles), (err) => {
+      if (err) {
+        console.error(`Caught write file error: ${err}`)
+        reject(err);
+        return;
+      }
+
+      resolve(true);
+    });
+  });
 }
 
 function download(url, target) {
